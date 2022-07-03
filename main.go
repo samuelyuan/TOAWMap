@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image/color"
 	"log"
 	"math"
 	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
@@ -16,6 +18,11 @@ import (
 const (
 	radius = 10.0
 )
+
+type GroupColor struct {
+	OuterColor color.RGBA
+	InnerColor color.RGBA
+}
 
 func getImagePosition(i int, j int) (float64, float64) {
 	angle := math.Pi / 6
@@ -189,10 +196,149 @@ func drawRiversAndRoads(dc *gg.Context, allTileData [][]*fileio.TileData, mapHei
 	}
 }
 
+func initGroupColorMap() map[int]GroupColor {
+	groupColorMap := make(map[int]GroupColor)
+	groupColorMap[10] = GroupColor{
+		OuterColor: color.RGBA{173, 173, 173, 255}, // gray
+		InnerColor: color.RGBA{239, 239, 239, 255}, // white
+	}
+	groupColorMap[12] = GroupColor{
+		OuterColor: color.RGBA{173, 173, 173, 255}, // gray
+		InnerColor: color.RGBA{231, 239, 247, 255}, // light blue
+	}
+	groupColorMap[19] = GroupColor{
+		OuterColor: color.RGBA{0, 132, 0, 255}, // green
+		InnerColor: color.RGBA{0, 0, 255, 255}, // blue
+	}
+	groupColorMap[20] = GroupColor{
+		OuterColor: color.RGBA{128, 0, 0, 255},   // maroon
+		InnerColor: color.RGBA{115, 99, 82, 255}, // brown
+	}
+	groupColorMap[21] = GroupColor{
+		OuterColor: color.RGBA{128, 0, 0, 255}, // maroon
+		InnerColor: color.RGBA{0, 0, 0, 255},   // black
+	}
+	groupColorMap[22] = GroupColor{
+		OuterColor: color.RGBA{128, 0, 0, 255}, // maroon
+		InnerColor: color.RGBA{99, 0, 0, 255},  // darker red
+	}
+	groupColorMap[23] = GroupColor{
+		OuterColor: color.RGBA{128, 0, 0, 255},   // maroon
+		InnerColor: color.RGBA{99, 123, 66, 255}, // green
+	}
+	groupColorMap[24] = GroupColor{
+		OuterColor: color.RGBA{128, 0, 0, 255}, // maroon
+		InnerColor: color.RGBA{255, 0, 0, 255}, // red
+	}
+	groupColorMap[31] = GroupColor{
+		OuterColor: color.RGBA{247, 247, 247, 255}, // white
+		InnerColor: color.RGBA{255, 255, 0, 255},   // yellow
+	}
+	groupColorMap[34] = GroupColor{
+		OuterColor: color.RGBA{247, 247, 247, 255}, // white
+		InnerColor: color.RGBA{189, 189, 189, 255}, // gray
+	}
+	groupColorMap[35] = GroupColor{
+		OuterColor: color.RGBA{239, 222, 0, 255},  // yellow
+		InnerColor: color.RGBA{255, 247, 99, 255}, // light yellow
+	}
+	groupColorMap[36] = GroupColor{
+		OuterColor: color.RGBA{239, 222, 0, 255},   // yellow
+		InnerColor: color.RGBA{165, 214, 148, 255}, // green
+	}
+	groupColorMap[37] = GroupColor{
+		OuterColor: color.RGBA{239, 222, 0, 255},   // yellow
+		InnerColor: color.RGBA{112, 194, 240, 255}, // light blue
+	}
+	groupColorMap[38] = GroupColor{
+		OuterColor: color.RGBA{239, 222, 0, 255},   // yellow
+		InnerColor: color.RGBA{206, 189, 156, 255}, // beige
+	}
+	groupColorMap[39] = GroupColor{
+		OuterColor: color.RGBA{239, 222, 0, 255},   // yellow
+		InnerColor: color.RGBA{247, 247, 247, 255}, // white
+	}
+	groupColorMap[40] = GroupColor{
+		OuterColor: color.RGBA{198, 181, 132, 255}, // tan
+		InnerColor: color.RGBA{239, 239, 65, 255},  // yellow
+	}
+	groupColorMap[41] = GroupColor{
+		OuterColor: color.RGBA{198, 181, 132, 255}, // tan
+		InnerColor: color.RGBA{0, 0, 255, 255},     // blue
+	}
+	groupColorMap[42] = GroupColor{
+		OuterColor: color.RGBA{198, 181, 132, 255}, // tan
+		InnerColor: color.RGBA{123, 198, 255, 255}, // light blue
+	}
+	groupColorMap[43] = GroupColor{
+		OuterColor: color.RGBA{198, 181, 132, 255}, // tan
+		InnerColor: color.RGBA{255, 0, 0, 255},     // red
+	}
+	groupColorMap[44] = GroupColor{
+		OuterColor: color.RGBA{198, 181, 132, 255}, // tan
+		InnerColor: color.RGBA{255, 255, 0, 255},   // yellow
+	}
+	groupColorMap[55] = GroupColor{
+		OuterColor: color.RGBA{82, 156, 255, 255}, // light blue
+		InnerColor: color.RGBA{189, 24, 24, 255},  // red
+	}
+	groupColorMap[90] = GroupColor{
+		OuterColor: color.RGBA{198, 24, 24, 255}, // red
+		InnerColor: color.RGBA{156, 16, 16, 255}, // darker red
+	}
+	groupColorMap[91] = GroupColor{
+		OuterColor: color.RGBA{198, 24, 24, 255},   // red
+		InnerColor: color.RGBA{231, 231, 231, 255}, // gray
+	}
+	groupColorMap[92] = GroupColor{
+		OuterColor: color.RGBA{198, 24, 24, 255},  // red
+		InnerColor: color.RGBA{165, 132, 49, 255}, // brown
+	}
+	groupColorMap[93] = GroupColor{
+		OuterColor: color.RGBA{198, 24, 24, 255}, // red
+		InnerColor: color.RGBA{222, 0, 41, 255},  // lighter red
+	}
+	groupColorMap[94] = GroupColor{
+		OuterColor: color.RGBA{198, 24, 24, 255}, // red
+		InnerColor: color.RGBA{16, 16, 16, 255},  // black
+	}
+	groupColorMap[99] = GroupColor{
+		OuterColor: color.RGBA{198, 181, 132, 255}, // tan
+		InnerColor: color.RGBA{239, 222, 165, 255}, // light tan
+	}
+	groupColorMap[101] = GroupColor{
+		OuterColor: color.RGBA{0, 0, 0, 255},    // black
+		InnerColor: color.RGBA{222, 0, 41, 255}, // red
+	}
+	groupColorMap[105] = GroupColor{
+		OuterColor: color.RGBA{115, 115, 115, 255}, // gray
+		InnerColor: color.RGBA{148, 165, 148, 255}, // green
+	}
+	groupColorMap[106] = GroupColor{
+		OuterColor: color.RGBA{115, 115, 115, 255}, // gray
+		InnerColor: color.RGBA{24, 24, 24, 255},    // black
+	}
+	groupColorMap[107] = GroupColor{
+		OuterColor: color.RGBA{115, 115, 115, 255}, // gray
+		InnerColor: color.RGBA{148, 181, 66, 255},  // lighter green
+	}
+	groupColorMap[108] = GroupColor{
+		OuterColor: color.RGBA{115, 115, 115, 255}, // gray
+		InnerColor: color.RGBA{247, 247, 239, 255}, // white
+	}
+	groupColorMap[109] = GroupColor{
+		OuterColor: color.RGBA{115, 115, 115, 255}, // gray
+		InnerColor: color.RGBA{231, 189, 123, 255}, // tan
+	}
+	return groupColorMap
+}
+
 func drawUnits(dc *gg.Context, mapData *fileio.TOAWMapData) {
 	rand.Seed(time.Now().UnixNano())
-	teamColorMap := make(map[int][]int)
+
+	groupColorMap := initGroupColorMap()
 	unitTeamMap := make(map[int][]string)
+
 	for i := 0; i < len(mapData.AllUnitData); i++ {
 		unitData := mapData.AllUnitData[i]
 		x := int(unitData.X)
@@ -201,20 +347,31 @@ func drawUnits(dc *gg.Context, mapData *fileio.TOAWMapData) {
 			continue
 		}
 		imageX, imageY := getImagePosition(y, x)
-		dc.DrawRectangle(imageX-(radius/2), imageY-(radius/2), radius, radius)
 
-		team := int(unitData.Team)
-		if _, ok := teamColorMap[int(team)]; !ok {
-			teamColorMap[int(team)] = []int{rand.Intn(255), rand.Intn(255), rand.Intn(255)}
+		team := int((unitData.UnitColorAndType + ((unitData.UnitColorAndType >> 31) & 0x7f)) >> 7)
+		unitType := int(unitData.UnitColorAndType & 0x8000007f)
+
+		if _, ok := groupColorMap[int(team)]; !ok {
+			fmt.Println("Generating random color for group", team)
+			groupColorMap[int(team)] = GroupColor{
+				OuterColor: color.RGBA{uint8(rand.Intn(255)), uint8(rand.Intn(255)), uint8(rand.Intn(255)), 255},
+				InnerColor: color.RGBA{uint8(rand.Intn(255)), uint8(rand.Intn(255)), uint8(rand.Intn(255)), 255},
+			}
 		}
 		if _, ok := unitTeamMap[int(team)]; !ok {
 			unitTeamMap[int(team)] = make([]string, 0)
 		}
 		teamName := string(strings.Split(string(unitData.Name[:]), "\x00")[0])
-		unitTeamMap[int(team)] = append(unitTeamMap[int(team)], teamName)
+		unitTeamMap[int(team)] = append(unitTeamMap[int(team)], fmt.Sprintf("%v (type: %v)", teamName, unitType))
 
-		teamColor := teamColorMap[int(team)]
-		dc.SetRGB255(teamColor[0], teamColor[1], teamColor[2])
+		outerColor := groupColorMap[int(team)].OuterColor
+		dc.DrawRectangle(imageX-(radius/2), imageY-(radius/3), radius, radius*2/3)
+		dc.SetRGB255(int(outerColor.R), int(outerColor.G), int(outerColor.B))
+		dc.Fill()
+
+		innerColor := groupColorMap[int(team)].InnerColor
+		dc.DrawRectangle(imageX-(radius/4), imageY-(radius/6), radius/2, radius*1/3)
+		dc.SetRGB255(int(innerColor.R), int(innerColor.G), int(innerColor.B))
 		dc.Fill()
 
 		// dc.SetRGB255(255, 255, 255)
@@ -222,8 +379,14 @@ func drawUnits(dc *gg.Context, mapData *fileio.TOAWMapData) {
 		// dc.DrawString(name, imageX-(5.0*float64(len(name))/2.0), imageY-(radius*1.5))
 	}
 	fmt.Println("Team data:")
-	for teamId, unitList := range unitTeamMap {
-		fmt.Println("Team", teamId, ", color:", teamColorMap[teamId], ", unit count:", len(unitList), ", units:", unitList)
+	keys := make([]int, 0, len(unitTeamMap))
+	for k := range unitTeamMap {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	for _, teamId := range keys {
+		unitList := unitTeamMap[teamId]
+		fmt.Println("Group", teamId, ", color:", groupColorMap[teamId], ", unit count:", len(unitList), ", units:", unitList)
 	}
 }
 

@@ -45,17 +45,14 @@ type UnitData struct {
 	UnknownBlock1            [60]uint32
 	UnknownBlock2            [48]byte
 	Unknown_x134             [4]byte
-	Unknown_x138             byte
-	Team                     byte
-	Unknown_x13a             byte
-	Unknown_x13b             byte
+	UnitColorAndType         uint32 // this can't be split up into separate bytes due to the way the bits are stored
 	Unknown_x13c             uint32
 	Unknown_x140             uint32
 	Proficiency              uint32
 	Readiness                uint32
 	SupplyLevel              uint32
 	Unknown_x150             uint32
-	OtherUnitIndexOnSameTile uint32 // 4000 (max number of units) doesn't refer to any unit
+	OtherUnitIndexOnSameTile uint32 // 1000 or 4000 (depends on max number of units) doesn't refer to any unit
 	X                        int32
 	Y                        int32
 	Unknown_x160             uint32
@@ -69,11 +66,11 @@ type UnitData struct {
 }
 
 type TeamNameData struct {
-	CountryName [17]byte
-	ForceName   [35]byte
-	Proficiency uint32
-	SupplyLevel uint32
-	Flag        uint32
+	CountryName   [17]byte
+	ForceName     [35]byte
+	Proficiency   uint32
+	SupplyLevel   uint32
+	CountryFlagId uint32
 }
 
 type TOAWMapData struct {
