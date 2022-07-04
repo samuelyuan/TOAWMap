@@ -2,6 +2,7 @@ package fileio
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -105,6 +106,35 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 		log.Fatal("Failed to load map: ", err)
 		return nil, err
 	}
+
+	// If the game is a TOAW4 scenario, it will be compressed using Gzip
+	// The older games will have TOAC in the header
+	var gzipHeader [3]byte
+	_, err = io.ReadFull(inputFile, gzipHeader[:])
+	if err != nil {
+		return nil, err
+	}
+	// Reset file pointer
+	inputFile.Seek(0, 0)
+	// Gzip header: The magic number is 0x1f8band the compression method is 08 for DEFLATE
+	if gzipHeader[0] == 0x1f && gzipHeader[1] == 0x8b && gzipHeader[2] == 0x08 {
+		fmt.Println("Decompressing TOAW4 scenario")
+
+		decompressedFile, err := gzip.NewReader(inputFile)
+		if err != nil {
+			return nil, err
+		}
+		defer decompressedFile.Close()
+
+		decompressedFileContents, err := ioutil.ReadAll(decompressedFile)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Println("Decompressed contents size: ", len(decompressedFileContents))
+		return nil, nil
+	}
+
 	fi, err := inputFile.Stat()
 	if err != nil {
 		log.Fatal(err)

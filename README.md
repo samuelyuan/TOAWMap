@@ -20,5 +20,6 @@ Example
 ```
 
 <div style="display:inline-block;">
-<img src="https://raw.githubusercontent.com/samuelyuan/TOAWMap/master/screenshots/korea50.png" alt="korea50" width="300" height="618" />
+<img src="https://raw.githubusercontent.com/samuelyuan/TOAWMap/master/screenshots/korea50.png" alt="korea50" width="145" height="300" />
+<img src="https://raw.githubusercontent.com/samuelyuan/TOAWMap/master/screenshots/manchuria.png" alt="manchuria" width="300" height="300" />
 </div>
