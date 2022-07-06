@@ -13,7 +13,7 @@ import (
 	"github.com/samuelyuan/TOAWMap/blast"
 )
 
-type TOAW3MapHeader struct {
+type TOAWMapHeader struct {
 	Header                  [16]byte
 	UnknownInt1             uint32
 	MapTitle                [264]byte
@@ -118,21 +118,7 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 	inputFile.Seek(0, 0)
 	// Gzip header: The magic number is 0x1f8band the compression method is 08 for DEFLATE
 	if gzipHeader[0] == 0x1f && gzipHeader[1] == 0x8b && gzipHeader[2] == 0x08 {
-		fmt.Println("Decompressing TOAW4 scenario")
-
-		decompressedFile, err := gzip.NewReader(inputFile)
-		if err != nil {
-			return nil, err
-		}
-		defer decompressedFile.Close()
-
-		decompressedFileContents, err := ioutil.ReadAll(decompressedFile)
-		if err != nil {
-			return nil, err
-		}
-
-		fmt.Println("Decompressed contents size: ", len(decompressedFileContents))
-		return nil, nil
+		return ReadTOAW4Scenario(inputFile)
 	}
 
 	fi, err := inputFile.Stat()
@@ -143,7 +129,7 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 	fileLength := fi.Size()
 	streamReader := io.NewSectionReader(inputFile, int64(0), fileLength)
 
-	mapHeader := TOAW3MapHeader{}
+	mapHeader := TOAWMapHeader{}
 	if err := binary.Read(streamReader, binary.LittleEndian, &mapHeader); err != nil {
 		return nil, err
 	}
@@ -160,7 +146,7 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 
 	totalBlocks := 12
 	// Later version has an additional block
-	if mapHeader.Version == 0x79 {
+	if mapHeader.Version >= 0x79 {
 		totalBlocks = 13
 	}
 
@@ -195,6 +181,9 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 	}
 
 	unknownData1 := make([]byte, 256)
+	if mapHeader.Version == 0x42 { // TOAW1
+		unknownData1 = make([]byte, 232)
+	}
 	if err := binary.Read(streamReader, binary.LittleEndian, &unknownData1); err != nil {
 		return nil, err
 	}
@@ -215,11 +204,18 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 	version := int(mapHeader.Version)
 	mapWidth := 1 + int(binary.LittleEndian.Uint32(unknownData1[0:4]))
 	mapHeight := 1 + int(binary.LittleEndian.Uint32(unknownData1[4:8]))
+
+	locationBlockIndex := 10
+	if version >= 0x79 {
+		locationBlockIndex = 11
+	}
+	locationBlock := decompressedBlocks[locationBlockIndex]
+
 	mapData := &TOAWMapData{
 		Version:            version,
 		DecompressedBlocks: decompressedBlocks,
-		AllTileData:        GetTileData(decompressedBlocks, mapHeight, mapWidth),
-		AllLocationData:    GetLocationData(version, decompressedBlocks),
+		AllTileData:        GetTileData(decompressedBlocks[1], mapHeight, mapWidth),
+		AllLocationData:    GetLocationData(locationBlock),
 		AllUnitData:        GetUnitData(decompressedBlocks),
 		AllTeamNameData:    GetTeamNameData(decompressedBlocks),
 		MapWidth:           mapWidth,
@@ -228,12 +224,79 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 	return mapData, nil
 }
 
-func GetLocationData(version int, decompressedBlocks [][]byte) []LocationData {
-	locationBlockIndex := 10
-	if version == 0x79 {
-		locationBlockIndex = 11
+func ReadTOAW4Scenario(compressedFile *os.File) (*TOAWMapData, error) {
+	decompressedFile, err := gzip.NewReader(compressedFile)
+	if err != nil {
+		return nil, err
 	}
-	locationBlock := decompressedBlocks[locationBlockIndex]
+	defer decompressedFile.Close()
+
+	decompressedFileContents, err := ioutil.ReadAll(decompressedFile)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Decompressed contents size: ", len(decompressedFileContents))
+	streamReader := io.NewSectionReader(bytes.NewReader(decompressedFileContents), int64(0), int64(len(decompressedFileContents)))
+
+	mapHeader := TOAWMapHeader{}
+	if err := binary.Read(streamReader, binary.LittleEndian, &mapHeader); err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Version:", mapHeader.Version)
+	fmt.Println("Map title:", string(mapHeader.MapTitle[:]))
+	fmt.Println("Map description:", string(bytes.Trim(mapHeader.MapDescription[:], "\x00")))
+	fmt.Println("EndMessageTeam1Victory1:", string(bytes.Trim(mapHeader.EndMessageTeam1Victory1[:], "\x00")))
+	fmt.Println("EndMessageTeam1Victory2:", string(bytes.Trim(mapHeader.EndMessageTeam1Victory2[:], "\x00")))
+	fmt.Println("EndMessageDraw1:", string(bytes.Trim(mapHeader.EndMessageDraw1[:], "\x00")))
+	fmt.Println("EndMessageTeam2Victory:", string(bytes.Trim(mapHeader.EndMessageTeam2Victory[:], "\x00")))
+	fmt.Println("EndMessageDraw2:", string(bytes.Trim(mapHeader.EndMessageDraw2[:], "\x00")))
+	fmt.Println("Team goes first:", mapHeader.TeamGoesFirst)
+
+	unknownData1 := make([]byte, 448)
+	if err := binary.Read(streamReader, binary.LittleEndian, &unknownData1); err != nil {
+		return nil, err
+	}
+	fmt.Println("unknownData1:", unknownData1)
+
+	// This is similar to TOAW3
+	decompressedBlock0 := make([]byte, 696)
+	if err := binary.Read(streamReader, binary.LittleEndian, &decompressedBlock0); err != nil {
+		return nil, err
+	}
+
+	// This block contains the map data
+	decompressedBlock1 := make([]byte, 48*700*700)
+	if err := binary.Read(streamReader, binary.LittleEndian, &decompressedBlock1); err != nil {
+		return nil, err
+	}
+
+	version := int(mapHeader.Version)
+	mapWidth := 1 + int(binary.LittleEndian.Uint32(unknownData1[132:136]))
+	mapHeight := 1 + int(binary.LittleEndian.Uint32(unknownData1[136:140]))
+
+	fmt.Println("Map width: ", mapWidth, ", map height: ", mapHeight)
+
+	// This block seems to be in the same location
+	// 144000 bytes long
+	// 36 bytes per location * 4000 locations maximum
+	locationBlock := decompressedFileContents[64859168:65003168]
+
+	mapData := &TOAWMapData{
+		Version:            version,
+		DecompressedBlocks: [][]byte{},
+		AllTileData:        GetTileData(decompressedBlock1, mapHeight, mapWidth),
+		AllLocationData:    GetLocationData(locationBlock),
+		AllUnitData:        []*UnitData{},
+		AllTeamNameData:    []*TeamNameData{},
+		MapWidth:           mapWidth,
+		MapHeight:          mapHeight,
+	}
+	return mapData, nil
+}
+
+func GetLocationData(locationBlock []byte) []LocationData {
 	streamReader := io.NewSectionReader(bytes.NewReader(locationBlock), int64(0), int64(len(locationBlock)))
 	locationDataSize := 36
 	numLocations := len(locationBlock) / locationDataSize
@@ -244,22 +307,29 @@ func GetLocationData(version int, decompressedBlocks [][]byte) []LocationData {
 	return allLocationData
 }
 
-func GetTileData(decompressedBlocks [][]byte, mapHeight int, mapWidth int) [][]*TileData {
+func GetTileData(mapBlock []byte, mapHeight int, mapWidth int) [][]*TileData {
 	allTileData := make([][]*TileData, mapHeight)
 	for i := 0; i < len(allTileData); i++ {
 		allTileData[i] = make([]*TileData, mapWidth)
 	}
 
-	mapBlockIndex := 1
-	mapBlock := decompressedBlocks[mapBlockIndex]
-
-	// The maximum map dimensions is 300x300, but most maps will never reach that size
 	// The file format keeps the map block a constant size, but the unused data is set to zero bytes
-	tileDataSize := 47
-	columnDataSize := tileDataSize * 300
-	if len(mapBlock) == 470000 {
+	var tileDataSize, columnDataSize int
+	if len(mapBlock) == 48*700*700 {
+		// Only for TOAW4 maps
+		// The maximum map dimensions were expanded to 700x700
+		tileDataSize = 48
+		columnDataSize = tileDataSize * 700
+	} else if len(mapBlock) == 47*300*300 {
+		// The maximum map dimensions for TOAW3 or earlier games is 300x300, but most maps will never reach that size
+		tileDataSize = 47
+		columnDataSize = tileDataSize * 300
+	} else if len(mapBlock) == 47*100*100 {
 		// The maximum map dimensions is assumed to be 100x100
+		tileDataSize = 47
 		columnDataSize = tileDataSize * 100
+	} else {
+		log.Fatal(fmt.Sprintf("Failed to read tile data block of length %v", len(mapBlock)))
 	}
 	for x := 0; x < mapWidth; x++ {
 		columnStart := x * columnDataSize
