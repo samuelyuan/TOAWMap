@@ -30,7 +30,7 @@ There have been many maps generated for The Operational Art of War (TOAW) series
 
 ### TOAW Game Version Notes
 
-The Operational Art of War IV (TOAW4) uses gzip to compress the files. The file will begin with the gzip header, where the magic number is 0x1f8band the compression method is 08 for DEFLATE.
+The Operational Art of War IV (TOAW4) uses gzip to compress the files. The file will begin with the gzip header, where the magic number is 0x1f8b and the compression method is 08 for DEFLATE.
 
 TOAW3 and earlier games use PKWare Compression Library to compress each of the blocks. The header will begin with "TOAC".
 
