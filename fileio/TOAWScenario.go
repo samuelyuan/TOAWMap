@@ -75,14 +75,13 @@ type TeamNameData struct {
 }
 
 type TOAWMapData struct {
-	Version            int
-	DecompressedBlocks [][]byte
-	AllLocationData    []LocationData
-	AllTeamNameData    []*TeamNameData
-	AllTileData        [][]*TileData
-	AllUnitData        []*UnitData
-	MapWidth           int
-	MapHeight          int
+	Version         int
+	AllLocationData []LocationData
+	AllTeamNameData []*TeamNameData
+	AllTileData     [][]*TileData
+	AllUnitData     []*UnitData
+	MapWidth        int
+	MapHeight       int
 }
 
 func dumpData(inputData []byte, outputFilename string) {
@@ -212,14 +211,13 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 	locationBlock := decompressedBlocks[locationBlockIndex]
 
 	mapData := &TOAWMapData{
-		Version:            version,
-		DecompressedBlocks: decompressedBlocks,
-		AllTileData:        GetTileData(decompressedBlocks[1], mapHeight, mapWidth),
-		AllLocationData:    GetLocationData(locationBlock),
-		AllUnitData:        GetUnitData(decompressedBlocks),
-		AllTeamNameData:    GetTeamNameData(decompressedBlocks),
-		MapWidth:           mapWidth,
-		MapHeight:          mapHeight,
+		Version:         version,
+		AllTileData:     GetTileData(decompressedBlocks[1], mapHeight, mapWidth),
+		AllLocationData: GetLocationData(locationBlock),
+		AllUnitData:     GetUnitData(decompressedBlocks),
+		AllTeamNameData: GetTeamNameData(decompressedBlocks),
+		MapWidth:        mapWidth,
+		MapHeight:       mapHeight,
 	}
 	return mapData, nil
 }
@@ -284,14 +282,13 @@ func ReadTOAW4Scenario(compressedFile *os.File) (*TOAWMapData, error) {
 	locationBlock := decompressedFileContents[64859168:65003168]
 
 	mapData := &TOAWMapData{
-		Version:            version,
-		DecompressedBlocks: [][]byte{},
-		AllTileData:        GetTileData(decompressedBlock1, mapHeight, mapWidth),
-		AllLocationData:    GetLocationData(locationBlock),
-		AllUnitData:        []*UnitData{},
-		AllTeamNameData:    []*TeamNameData{},
-		MapWidth:           mapWidth,
-		MapHeight:          mapHeight,
+		Version:         version,
+		AllTileData:     GetTileData(decompressedBlock1, mapHeight, mapWidth),
+		AllLocationData: GetLocationData(locationBlock),
+		AllUnitData:     []*UnitData{},
+		AllTeamNameData: []*TeamNameData{},
+		MapWidth:        mapWidth,
+		MapHeight:       mapHeight,
 	}
 	return mapData, nil
 }

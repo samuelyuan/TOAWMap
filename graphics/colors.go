@@ -1,7 +1,7 @@
 package graphics
 
 import (
-  	"image/color"
+	"image/color"
 )
 
 type GroupColor struct {
