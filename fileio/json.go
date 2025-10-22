@@ -2,7 +2,7 @@ package fileio
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 )
@@ -20,7 +20,7 @@ func ImportTOAWMapDataFromJson(inputFilename string) *TOAWMapData {
 	}
 	defer jsonFile.Close()
 
-	jsonContents, err := ioutil.ReadAll(jsonFile)
+	jsonContents, err := io.ReadAll(jsonFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func ExportTOAWMapJson(mapData *TOAWMapData, outputFilename string) {
 		log.Fatal("Failed to marshal data: ", err)
 	}
 
-	err = ioutil.WriteFile(outputFilename, file, 0644)
+	err = os.WriteFile(outputFilename, file, 0644)
 	if err != nil {
 		log.Fatal("Error writing to ", outputFilename)
 	}

@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -100,11 +99,10 @@ func dumpData(inputData []byte, outputFilename string) {
 
 func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 	inputFile, err := os.Open(filename)
-	defer inputFile.Close()
 	if err != nil {
-		log.Fatal("Failed to load map: ", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to open file %s: %w", filename, err)
 	}
+	defer inputFile.Close()
 
 	// If the game is a TOAW4 scenario, it will be compressed using Gzip
 	// The older games will have TOAC in the header
@@ -122,26 +120,52 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 
 	fi, err := inputFile.Stat()
 	if err != nil {
-		log.Fatal(err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
 	fileLength := fi.Size()
 	streamReader := io.NewSectionReader(inputFile, int64(0), fileLength)
 
 	mapHeader := TOAWMapHeader{}
 	if err := binary.Read(streamReader, binary.LittleEndian, &mapHeader); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read map header: %w", err)
 	}
 
-	fmt.Println("Version:", mapHeader.Version)
-	fmt.Println("Map title:", string(mapHeader.MapTitle[:]))
-	fmt.Println("Map description:", string(bytes.Trim(mapHeader.MapDescription[:], "\x00")))
-	fmt.Println("EndMessageTeam1Victory1:", string(bytes.Trim(mapHeader.EndMessageTeam1Victory1[:], "\x00")))
-	fmt.Println("EndMessageTeam1Victory2:", string(bytes.Trim(mapHeader.EndMessageTeam1Victory2[:], "\x00")))
-	fmt.Println("EndMessageDraw1:", string(bytes.Trim(mapHeader.EndMessageDraw1[:], "\x00")))
-	fmt.Println("EndMessageTeam2Victory:", string(bytes.Trim(mapHeader.EndMessageTeam2Victory[:], "\x00")))
-	fmt.Println("EndMessageDraw2:", string(bytes.Trim(mapHeader.EndMessageDraw2[:], "\x00")))
-	fmt.Println("Team goes first:", mapHeader.TeamGoesFirst)
+	fmt.Println("Map Information:")
+	fmt.Printf("  Version: %d\n", mapHeader.Version)
+	fmt.Printf("  Title: %s\n", string(bytes.Trim(mapHeader.MapTitle[:], "\x00")))
+	
+	description := string(bytes.Trim(mapHeader.MapDescription[:], "\x00"))
+	if description != "" {
+		fmt.Printf("  Description: %s\n", description)
+	}
+	
+	// Only show victory messages if they're not empty
+	msg1 := string(bytes.Trim(mapHeader.EndMessageTeam1Victory1[:], "\x00"))
+	msg2 := string(bytes.Trim(mapHeader.EndMessageTeam1Victory2[:], "\x00"))
+	draw1 := string(bytes.Trim(mapHeader.EndMessageDraw1[:], "\x00"))
+	msg3 := string(bytes.Trim(mapHeader.EndMessageTeam2Victory[:], "\x00"))
+	draw2 := string(bytes.Trim(mapHeader.EndMessageDraw2[:], "\x00"))
+	
+	if msg1 != "" || msg2 != "" || draw1 != "" || msg3 != "" || draw2 != "" {
+		fmt.Println("Victory Messages:")
+		if msg1 != "" {
+			fmt.Printf("  Team 1 Victory 1: %s\n", msg1)
+		}
+		if msg2 != "" {
+			fmt.Printf("  Team 1 Victory 2: %s\n", msg2)
+		}
+		if draw1 != "" {
+			fmt.Printf("  Draw Message 1: %s\n", draw1)
+		}
+		if msg3 != "" {
+			fmt.Printf("  Team 2 Victory: %s\n", msg3)
+		}
+		if draw2 != "" {
+			fmt.Printf("  Draw Message 2: %s\n", draw2)
+		}
+	}
+	
+	fmt.Printf("Team goes first: %d\n", mapHeader.TeamGoesFirst)
 
 	totalBlocks := 12
 	// Later version has an additional block
@@ -155,7 +179,7 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 		if err := binary.Read(streamReader, binary.LittleEndian, &blockSize); err != nil {
 			return nil, err
 		}
-		fmt.Println("Block", i, "size:", blockSize)
+		fmt.Printf("Block %d: %d bytes\n", i, blockSize)
 
 		blockData := make([]byte, blockSize)
 		if err := binary.Read(streamReader, binary.LittleEndian, &blockData); err != nil {
@@ -170,7 +194,7 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 			return nil, err
 		}
 
-		decompressedData, err := ioutil.ReadAll(r)
+		decompressedData, err := io.ReadAll(r)
 		if err != nil {
 			return nil, err
 		}
@@ -203,6 +227,8 @@ func ReadTOAWScenario(filename string) (*TOAWMapData, error) {
 	version := int(mapHeader.Version)
 	mapWidth := 1 + int(binary.LittleEndian.Uint32(unknownData1[0:4]))
 	mapHeight := 1 + int(binary.LittleEndian.Uint32(unknownData1[4:8]))
+	
+	fmt.Printf("Map Dimensions: %dx%d\n", mapWidth, mapHeight)
 
 	locationBlockIndex := 10
 	if version >= 0x79 {
@@ -229,7 +255,7 @@ func ReadTOAW4Scenario(compressedFile *os.File) (*TOAWMapData, error) {
 	}
 	defer decompressedFile.Close()
 
-	decompressedFileContents, err := ioutil.ReadAll(decompressedFile)
+	decompressedFileContents, err := io.ReadAll(decompressedFile)
 	if err != nil {
 		return nil, err
 	}
@@ -242,15 +268,42 @@ func ReadTOAW4Scenario(compressedFile *os.File) (*TOAWMapData, error) {
 		return nil, err
 	}
 
-	fmt.Println("Version:", mapHeader.Version)
-	fmt.Println("Map title:", string(mapHeader.MapTitle[:]))
-	fmt.Println("Map description:", string(bytes.Trim(mapHeader.MapDescription[:], "\x00")))
-	fmt.Println("EndMessageTeam1Victory1:", string(bytes.Trim(mapHeader.EndMessageTeam1Victory1[:], "\x00")))
-	fmt.Println("EndMessageTeam1Victory2:", string(bytes.Trim(mapHeader.EndMessageTeam1Victory2[:], "\x00")))
-	fmt.Println("EndMessageDraw1:", string(bytes.Trim(mapHeader.EndMessageDraw1[:], "\x00")))
-	fmt.Println("EndMessageTeam2Victory:", string(bytes.Trim(mapHeader.EndMessageTeam2Victory[:], "\x00")))
-	fmt.Println("EndMessageDraw2:", string(bytes.Trim(mapHeader.EndMessageDraw2[:], "\x00")))
-	fmt.Println("Team goes first:", mapHeader.TeamGoesFirst)
+	fmt.Println("Map Information (TOAW4):")
+	fmt.Printf("  Version: %d\n", mapHeader.Version)
+	fmt.Printf("  Title: %s\n", string(bytes.Trim(mapHeader.MapTitle[:], "\x00")))
+	
+	description := string(bytes.Trim(mapHeader.MapDescription[:], "\x00"))
+	if description != "" {
+		fmt.Printf("  Description: %s\n", description)
+	}
+	
+	// Only show victory messages if they're not empty
+	msg1 := string(bytes.Trim(mapHeader.EndMessageTeam1Victory1[:], "\x00"))
+	msg2 := string(bytes.Trim(mapHeader.EndMessageTeam1Victory2[:], "\x00"))
+	draw1 := string(bytes.Trim(mapHeader.EndMessageDraw1[:], "\x00"))
+	msg3 := string(bytes.Trim(mapHeader.EndMessageTeam2Victory[:], "\x00"))
+	draw2 := string(bytes.Trim(mapHeader.EndMessageDraw2[:], "\x00"))
+	
+	if msg1 != "" || msg2 != "" || draw1 != "" || msg3 != "" || draw2 != "" {
+		fmt.Println("Victory Messages:")
+		if msg1 != "" {
+			fmt.Printf("  Team 1 Victory 1: %s\n", msg1)
+		}
+		if msg2 != "" {
+			fmt.Printf("  Team 1 Victory 2: %s\n", msg2)
+		}
+		if draw1 != "" {
+			fmt.Printf("  Draw Message 1: %s\n", draw1)
+		}
+		if msg3 != "" {
+			fmt.Printf("  Team 2 Victory: %s\n", msg3)
+		}
+		if draw2 != "" {
+			fmt.Printf("  Draw Message 2: %s\n", draw2)
+		}
+	}
+	
+	fmt.Printf("Team goes first: %d\n", mapHeader.TeamGoesFirst)
 
 	unknownData1 := make([]byte, 448)
 	if err := binary.Read(streamReader, binary.LittleEndian, &unknownData1); err != nil {
@@ -274,7 +327,7 @@ func ReadTOAW4Scenario(compressedFile *os.File) (*TOAWMapData, error) {
 	mapWidth := 1 + int(binary.LittleEndian.Uint32(unknownData1[132:136]))
 	mapHeight := 1 + int(binary.LittleEndian.Uint32(unknownData1[136:140]))
 
-	fmt.Println("Map width: ", mapWidth, ", map height: ", mapHeight)
+	fmt.Printf("Map Dimensions: %dx%d\n", mapWidth, mapHeight)
 
 	// This block seems to be in the same location
 	// 144000 bytes long

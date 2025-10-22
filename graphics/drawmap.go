@@ -242,7 +242,11 @@ func drawUnits(dc *gg.Context, mapData *fileio.TOAWMapData) {
 	sort.Ints(keys)
 	for _, teamId := range keys {
 		unitList := unitTeamMap[teamId]
-		fmt.Println("Group", teamId, ", color:", groupColorMap[teamId], ", unit count:", len(unitList), ", units:", unitList)
+		groupColor := groupColorMap[teamId]
+		fmt.Printf("Group %d: %d units (color: %v)\n", teamId, len(unitList), groupColor)
+		for i, unit := range unitList {
+			fmt.Printf("  %d. %s\n", i+1, unit)
+		}
 	}
 }
 
@@ -267,7 +271,7 @@ func drawLocations(dc *gg.Context, mapData *fileio.TOAWMapData) {
 func DrawMap(mapData *fileio.TOAWMapData, outputFilename string) {
 	maxImageWidth, maxImageHeight := getImagePosition(mapData.MapHeight, mapData.MapWidth)
 	dc := gg.NewContext(int(maxImageWidth), int(maxImageHeight))
-	fmt.Println("Map height: ", mapData.MapHeight, ", width: ", mapData.MapWidth)
+	fmt.Printf("Rendering map: %dx%d tiles\n", mapData.MapWidth, mapData.MapHeight)
 
 	drawTiles(dc, mapData.AllTileData, int(mapData.MapHeight), int(mapData.MapWidth))
 	drawRiversAndRoads(dc, mapData.AllTileData, int(mapData.MapHeight), int(mapData.MapWidth))
